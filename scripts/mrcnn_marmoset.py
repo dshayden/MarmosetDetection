@@ -203,7 +203,7 @@ def detect(model, image_path, outpath):
     img = du.DrawOnImage(img, np.nonzero(masks[:,:,nM]), cols[nM])
 
   # save image
-  base = du.fileparts(imgPath)[1]
+  base = du.fileparts(image_path)[1]
   du.imwrite(img, f'{outpath}/{base}.jpg')
 
   # Read images
