@@ -26,7 +26,7 @@ setup(
     license='MIT',
     description='Mask R-CNN for marmoset detection and instance segmentation',
     packages=["mrcnn_marmoset"],
-    scripts=['scripts/mrcnn_marmoset.py'],
+    scripts=['scripts/mrcnn_marmoset_detect'],
     install_requires=install_reqs,
     dependency_links=[
       'git+https://github.com/matterport/Mask_RCNN.git'

@@ -35,20 +35,7 @@ import numpy as np
 import skimage.draw
 from mrcnn.config import Config
 from mrcnn import model as modellib, utils
-
-import du, IPython as ip
-
-# Path to trained weights file
-# COCO_WEIGHTS_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco.h5")
-
-# Directory to save logs and model checkpoints, if not provided
-# through the command line argument --logs
-# DEFAULT_LOGS_DIR = os.path.join(ROOT_DIR, "logs")
-
-############################################################
-#  Configurations
-############################################################
-
+import du
 
 class MarmosetConfig(Config):
   """Configuration for training on the toy  dataset.
@@ -70,13 +57,10 @@ class MarmosetConfig(Config):
   # Skip detections with < 90% confidence
   DETECTION_MIN_CONFIDENCE = 0.9
 
-
 ############################################################
 #  Dataset
 ############################################################
-
 class MarmosetDataset(utils.Dataset):
-
   def load_marmoset(self, dataset_dir, subset):
     """Load a subset of the Marmoset dataset.
     dataset_dir: Root directory of the dataset.
@@ -96,14 +80,6 @@ class MarmosetDataset(utils.Dataset):
     for idx, path in enumerate(imgs):
       base = du.fileparts(path)[1]
       self.add_image('marmoset', idx, path, base=base)
-
-    # will call self.add_image("marmoset", image_id, image_path)
-    #   each image will have an image, mask, resolution
-    # masks will be stored as boolean H x W x nInstance
-    # will overload load_mask(image_id)
-    #   loads mask directly; also rescales if H, W different from stated
-    #
-    # how to represent no target?
 
   def load_mask(self, image_id):
     """Generate instance masks for an image.
@@ -159,7 +135,7 @@ def train(model):
         epochs=1000,
         layers='all')
 
-def detect(weightPath, imgs, outpath, **kwargs):
+def detect(weightPath, imgs, outs, **kwargs):
   logPath = kwargs.get('logPath', '.')
 
   class InferenceConfig(MarmosetConfig):
@@ -175,7 +151,7 @@ def detect(weightPath, imgs, outpath, **kwargs):
   cols = du.diffcolors(100, alpha=0.5)
 
   # Read images
-  for imgPath in imgs:
+  for imgPath, outPath in zip(imgs, outs):
     img = du.imread(imgPath)
 
     # Detect objects
@@ -184,12 +160,16 @@ def detect(weightPath, imgs, outpath, **kwargs):
     # draw masks
     masks = r['masks']
     nMasks = masks.shape[-1]
-    for nM in range(nMasks):
-      img = du.DrawOnImage(img, np.nonzero(masks[:,:,nM]), cols[nM])
+
+    if kwargs.get('singleColor', True):
+      img = du.DrawOnImage(img, np.nonzero(np.sum(masks, axis=2)), cols[0])
+    else:
+      for nM in range(nMasks):
+        img = du.DrawOnImage(img, np.nonzero(masks[:,:,nM]), cols[nM])
     
     # save image
     base = du.fileparts(imgPath)[1]
-    du.imwrite(img, f'{outpath}/{base}.jpg')
+    du.imwrite(img, outPath)
 
 def detectMask(weightPath, imgs, outpath, **kwargs):
   logPath = kwargs.get('logPath', '.')

@@ -1,0 +1,17 @@
+#!/usr/bin/env python
+import argparse, mrcnn_marmoset
+
+def main(args):
+  if args.draw:
+    mrcnn_marmoset.detect(args.weights, [args.img,], [args.out,])
+
+if __name__ == "__main__":
+  parser = argparse.ArgumentParser(description='')
+  parser.add_argument('weights', type=str, help='h5 weights file.')
+  parser.add_argument('img', type=str, help='input image file.')
+  parser.add_argument('out', type=str, help='output path.')
+  parser.add_argument('--draw', action='store_true', help='draw output mask')
+
+  parser.set_defaults(func=main)
+  args = parser.parse_args()
+  args.func(args)
