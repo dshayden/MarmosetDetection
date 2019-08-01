@@ -30,7 +30,7 @@ setup(
     install_requires=install_reqs,
     dependency_links=[
       'git+https://github.com/matterport/Mask_RCNN.git'
-    ]
+    ],
     include_package_data=True,
     python_requires='>=3.4',
     classifiers=[
