@@ -35,7 +35,7 @@ import numpy as np
 import skimage.draw
 from mrcnn.config import Config
 from mrcnn import model as modellib, utils
-import du
+import du, ffmpegu as fu
 
 class MarmosetConfig(Config):
   """Configuration for training on the toy  dataset.
@@ -137,6 +137,8 @@ def train(model):
 
 def detect(weightPath, imgs, outs, **kwargs):
   logPath = kwargs.get('logPath', '.')
+  draw = kwargs.get('draw', False)
+  ss = kwargs.get('ss', 0.0)
 
   class InferenceConfig(MarmosetConfig):
     # Set batch size to 1 since we'll be running inference on
@@ -152,24 +154,32 @@ def detect(weightPath, imgs, outs, **kwargs):
 
   # Read images
   for imgPath, outPath in zip(imgs, outs):
-    img = du.imread(imgPath)
+    ext = du.fileparts(imgPath)[2].lower()
+    if ext == '.mp4' or ext == '.avi' or ext == '.mov':
+      img = fu.GetRGBFrameByTimeNumpy(imgPath, ss)
+    else:
+      img = du.imread(imgPath)
 
     # Detect objects
     r = model.detect([img], verbose=1)[0]
 
     # draw masks
     masks = r['masks']
-    nMasks = masks.shape[-1]
+    if draw:
+      nMasks = masks.shape[-1]
 
-    if kwargs.get('singleColor', True):
-      img = du.DrawOnImage(img, np.nonzero(np.sum(masks, axis=2)), cols[0])
+      if kwargs.get('singleColor', True):
+        img = du.DrawOnImage(img, np.nonzero(np.sum(masks, axis=2)), cols[0])
+      else:
+        for nM in range(nMasks):
+          img = du.DrawOnImage(img, np.nonzero(masks[:,:,nM]), cols[nM])
+      
+      # save image
+      du.imwrite(img, outPath)
     else:
-      for nM in range(nMasks):
-        img = du.DrawOnImage(img, np.nonzero(masks[:,:,nM]), cols[nM])
-    
-    # save image
-    base = du.fileparts(imgPath)[1]
-    du.imwrite(img, outPath)
+
+      # save masks
+      du.save(outPath, masks)
 
 def detectMask(weightPath, imgs, outpath, **kwargs):
   logPath = kwargs.get('logPath', '.')

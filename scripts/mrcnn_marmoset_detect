@@ -2,14 +2,15 @@
 import argparse, mrcnn_marmoset
 
 def main(args):
-  if args.draw:
-    mrcnn_marmoset.detect(args.weights, [args.img,], [args.out,])
+  mrcnn_marmoset.detect(args.weights, [args.img,], [args.out,],
+    draw=args.draw, ss=args.ss)
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description='')
-  parser.add_argument('weights', type=str, help='h5 weights file.')
-  parser.add_argument('img', type=str, help='input image file.')
-  parser.add_argument('out', type=str, help='output path.')
+  parser.add_argument('weights', type=str, help='h5 weights file')
+  parser.add_argument('img', type=str, help='input image or video file')
+  parser.add_argument('out', type=str, help='output path')
+  parser.add_argument('--ss', type=float, default=0.0, help='time (seconds) in video')
   parser.add_argument('--draw', action='store_true', help='draw output mask')
 
   parser.set_defaults(func=main)
