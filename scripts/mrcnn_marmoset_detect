@@ -3,7 +3,8 @@ import argparse, mrcnn_marmoset
 
 def main(args):
   mrcnn_marmoset.detect(args.weights, [args.img,], [args.out,],
-    draw=args.draw, ss=args.ss)
+    draw=args.draw, ss=args.ss, minConf=args.minConf,
+		singleColor=args.singleColor)
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description='')
@@ -12,6 +13,10 @@ if __name__ == "__main__":
   parser.add_argument('out', type=str, help='output path')
   parser.add_argument('--ss', type=float, default=0.0, help='time (seconds) in video')
   parser.add_argument('--draw', action='store_true', help='draw output mask')
+  parser.add_argument('--singleColor', action='store_true',
+		help='single color for all detections if using --draw')
+  parser.add_argument('--minConf', type=float, default=0.7,
+		help='minimum confidence for a detection')
 
   parser.set_defaults(func=main)
   args = parser.parse_args()

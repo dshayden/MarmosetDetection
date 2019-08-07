@@ -139,6 +139,8 @@ def detect(weightPath, imgs, outs, **kwargs):
   logPath = kwargs.get('logPath', '.')
   draw = kwargs.get('draw', False)
   ss = kwargs.get('ss', 0.0)
+  minConf = kwargs.get('minConf', 0.7)
+  print(f'minConf {minConf:.2f}')
 
   class InferenceConfig(MarmosetConfig):
     # Set batch size to 1 since we'll be running inference on
@@ -146,6 +148,8 @@ def detect(weightPath, imgs, outs, **kwargs):
     GPU_COUNT = 1
     IMAGES_PER_GPU = 1
     RPN_NMS_THRESHOLD = 0.9
+    DETECTION_MIN_CONFIDENCE = minConf
+
   model = modellib.MaskRCNN(mode="inference", config=InferenceConfig(),
     model_dir=logPath)
   model.load_weights(weightPath, by_name=True)
@@ -168,7 +172,7 @@ def detect(weightPath, imgs, outs, **kwargs):
     if draw:
       nMasks = masks.shape[-1]
 
-      if kwargs.get('singleColor', True):
+      if kwargs.get('singleColor', False):
         img = du.DrawOnImage(img, np.nonzero(np.sum(masks, axis=2)), cols[0])
       else:
         for nM in range(nMasks):
@@ -177,9 +181,8 @@ def detect(weightPath, imgs, outs, **kwargs):
       # save image
       du.imwrite(img, outPath)
     else:
-
-      # save masks
-      du.save(outPath, masks)
+      # save masks and scores
+      du.save(outPath, {'masks': r['masks'], 'scores': r['scores']})
 
 def detectMask(weightPath, imgs, outpath, **kwargs):
   logPath = kwargs.get('logPath', '.')
