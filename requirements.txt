@@ -2,3 +2,4 @@ du
 ffmpegu
 numpy
 mask-rcnn
+opencv-python

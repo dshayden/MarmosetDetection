@@ -11,7 +11,7 @@ if __name__ == "__main__":
   parser.add_argument('weights', type=str, help='h5 weights file')
   parser.add_argument('img', type=str, help='input image or video file')
   parser.add_argument('out', type=str, help='output path')
-  parser.add_argument('--ss', type=float, default=0.0, help='time (seconds) in video')
+  parser.add_argument('--ss', default=None, help='time (float, seconds) in video')
   parser.add_argument('--draw', action='store_true', help='draw output mask')
   parser.add_argument('--singleColor', action='store_true',
 		help='single color for all detections if using --draw')

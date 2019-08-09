@@ -36,6 +36,7 @@ import skimage.draw
 from mrcnn.config import Config
 from mrcnn import model as modellib, utils
 import du, ffmpegu as fu
+import cv2
 
 class MarmosetConfig(Config):
   """Configuration for training on the toy  dataset.
@@ -135,12 +136,35 @@ def train(model):
         epochs=1000,
         layers='all')
 
-def detect(weightPath, imgs, outs, **kwargs):
-  logPath = kwargs.get('logPath', '.')
+# def _detectImg(model, img):
+#   return model.detect([img], verbose=1)[0]
+
+def _saveDetection(detectionResult, outPath, **kwargs):
   draw = kwargs.get('draw', False)
-  ss = kwargs.get('ss', 0.0)
+  singleColor = kwargs.get('singleColor', False)
+
+  if draw:
+    cols = du.diffcolors(100, alpha=0.5)
+
+    masks = detectionResult['masks']
+    nMasks = masks.shape[-1]
+    if singleColor:
+      img = du.DrawOnImage(img, np.nonzero(np.sum(masks, axis=2)), cols[0])
+    else:
+      for nM in range(nMasks):
+        img = du.DrawOnImage(img, np.nonzero(masks[:,:,nM]), cols[nM])
+
+    # save image
+    du.imwrite(img, outPath)
+
+  else:
+    du.save(outPath, {'masks': detectionResult['masks'],
+      'scores': detectionResult['scores']})
+
+def detect(weightPath, imgs, outs, **kwargs):
+  draw = kwargs.get('draw', False)
+  ss = kwargs.get('ss', None)
   minConf = kwargs.get('minConf', 0.7)
-  print(f'minConf {minConf:.2f}')
 
   class InferenceConfig(MarmosetConfig):
     # Set batch size to 1 since we'll be running inference on
@@ -151,70 +175,118 @@ def detect(weightPath, imgs, outs, **kwargs):
     DETECTION_MIN_CONFIDENCE = minConf
 
   model = modellib.MaskRCNN(mode="inference", config=InferenceConfig(),
-    model_dir=logPath)
+    model_dir='.')
   model.load_weights(weightPath, by_name=True)
 
-  cols = du.diffcolors(100, alpha=0.5)
+  if type(imgs) == str and type(outs) == str:
+    imgs = [imgs, ]
+    outs = [outs, ]
 
-  # Read images
   for imgPath, outPath in zip(imgs, outs):
+    print(imgPath, outPath)
     ext = du.fileparts(imgPath)[2].lower()
     if ext == '.mp4' or ext == '.avi' or ext == '.mov':
-      img = fu.GetRGBFrameByTimeNumpy(imgPath, ss)
+      if ss is not None:
+        img = fu.GetRGBFrameByTimeNumpy(imgPath, ss)
+        r = model.detect([img], verbose=1)[0]
+        _saveDetection(r, outPath, **kwargs)
+      else:
+        video = cv2.VideoCapture(imgPath)
+        success, cnt = (True, 0)
+        while success:
+          du.tic()
+          success, image = video.read()
+          r = model.detect([image], verbose=1)[0]
+          outName = f'{outPath}-{cnt:08}'
+          if draw: outName += '.jpg'
+          _saveDetection(r, outName, **kwargs)
+          print(du.toc())
+          cnt += 1
+        continue
     else:
       img = du.imread(imgPath)
+      r = model.detect([img], verbose=1)[0]
+      _saveDetection(r, outPath, **kwargs)
 
-    # Detect objects
-    r = model.detect([img], verbose=1)[0]
-
-    # draw masks
-    masks = r['masks']
-    if draw:
-      nMasks = masks.shape[-1]
-
-      if kwargs.get('singleColor', False):
-        img = du.DrawOnImage(img, np.nonzero(np.sum(masks, axis=2)), cols[0])
-      else:
-        for nM in range(nMasks):
-          img = du.DrawOnImage(img, np.nonzero(masks[:,:,nM]), cols[nM])
-      
-      # save image
-      du.imwrite(img, outPath)
-    else:
-      # save masks and scores
-      du.save(outPath, {'masks': r['masks'], 'scores': r['scores']})
-
-def detectMask(weightPath, imgs, outpath, **kwargs):
-  logPath = kwargs.get('logPath', '.')
-
-  class InferenceConfig(MarmosetConfig):
-    # Set batch size to 1 since we'll be running inference on
-    # one image at a time. Batch size = GPU_COUNT * IMAGES_PER_GPU
-    GPU_COUNT = 1
-    IMAGES_PER_GPU = 1
-    RPN_NMS_THRESHOLD = 0.9
-  model = modellib.MaskRCNN(mode="inference", config=InferenceConfig(),
-    model_dir=logPath)
-  model.load_weights(weightPath, by_name=True)
-
-  cols = du.diffcolors(100, alpha=0.5)
-
-  # Read images
-  for imgPath in imgs:
-    img = du.imread(imgPath)
-
-    # Detect objects
-    r = model.detect([img], verbose=1)[0]
-
-    # draw masks
-    masks = r['masks']
-    # nMasks = masks.shape[-1]
-    # for nM in range(nMasks):
-    #   img = du.DrawOnImage(img, np.nonzero(masks[:,:,nM]), cols[nM])
-    
-    # save mask
-    base = du.fileparts(imgPath)[1]
-    du.save(f'{outpath}/{base}', masks)
+# def detect(weightPath, imgs, outs, **kwargs):
+#   logPath = kwargs.get('logPath', '.')
+#   draw = kwargs.get('draw', False)
+#   ss = kwargs.get('ss', 0.0)
+#   minConf = kwargs.get('minConf', 0.7)
+#
+#   class InferenceConfig(MarmosetConfig):
+#     # Set batch size to 1 since we'll be running inference on
+#     # one image at a time. Batch size = GPU_COUNT * IMAGES_PER_GPU
+#     GPU_COUNT = 1
+#     IMAGES_PER_GPU = 1
+#     RPN_NMS_THRESHOLD = 0.9
+#     DETECTION_MIN_CONFIDENCE = minConf
+#
+#   model = modellib.MaskRCNN(mode="inference", config=InferenceConfig(),
+#     model_dir=logPath)
+#   model.load_weights(weightPath, by_name=True)
+#
+#   cols = du.diffcolors(100, alpha=0.5)
+#
+#   # Read images
+#   for imgPath, outPath in zip(imgs, outs):
+#     ext = du.fileparts(imgPath)[2].lower()
+#     if ext == '.mp4' or ext == '.avi' or ext == '.mov':
+#       img = fu.GetRGBFrameByTimeNumpy(imgPath, ss)
+#     else:
+#       img = du.imread(imgPath)
+#
+#     # Detect objects
+#     r = model.detect([img], verbose=1)[0]
+#
+#     # draw masks
+#     masks = r['masks']
+#     if draw:
+#       nMasks = masks.shape[-1]
+#
+#       if kwargs.get('singleColor', False):
+#         img = du.DrawOnImage(img, np.nonzero(np.sum(masks, axis=2)), cols[0])
+#       else:
+#         for nM in range(nMasks):
+#           img = du.DrawOnImage(img, np.nonzero(masks[:,:,nM]), cols[nM])
+#
+#       # save image
+#       du.imwrite(img, outPath)
+#     else:
+#       # save masks and scores
+#       du.save(outPath, {'masks': r['masks'], 'scores': r['scores']})
+#
+# def detectMask(weightPath, imgs, outpath, **kwargs):
+#   logPath = kwargs.get('logPath', '.')
+#
+#   class InferenceConfig(MarmosetConfig):
+#     # Set batch size to 1 since we'll be running inference on
+#     # one image at a time. Batch size = GPU_COUNT * IMAGES_PER_GPU
+#     GPU_COUNT = 1
+#     IMAGES_PER_GPU = 1
+#     RPN_NMS_THRESHOLD = 0.9
+#   model = modellib.MaskRCNN(mode="inference", config=InferenceConfig(),
+#     model_dir=logPath)
+#   model.load_weights(weightPath, by_name=True)
+#
+#   cols = du.diffcolors(100, alpha=0.5)
+#
+#   # Read images
+#   for imgPath in imgs:
+#     img = du.imread(imgPath)
+#
+#     # Detect objects
+#     r = model.detect([img], verbose=1)[0]
+#
+#     # draw masks
+#     masks = r['masks']
+#     # nMasks = masks.shape[-1]
+#     # for nM in range(nMasks):
+#     #   img = du.DrawOnImage(img, np.nonzero(masks[:,:,nM]), cols[nM])
+#     
+#     # save mask
+#     base = du.fileparts(imgPath)[1]
+#     du.save(f'{outpath}/{base}', masks)
 
 #     config = MarmosetConfig()
 #     model = modellib.MaskRCNN(mode="inference", config=config,
