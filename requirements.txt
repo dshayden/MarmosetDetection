@@ -3,3 +3,4 @@ ffmpegu
 numpy
 mask-rcnn
 opencv-python
+pycocotools

@@ -37,6 +37,7 @@ from mrcnn.config import Config
 from mrcnn import model as modellib, utils
 import du, ffmpegu as fu
 import cv2
+from pycocotools import mask as pcMask
 
 class MarmosetConfig(Config):
   """Configuration for training on the toy  dataset.
@@ -136,9 +137,6 @@ def train(model):
         epochs=1000,
         layers='all')
 
-# def _detectImg(model, img):
-#   return model.detect([img], verbose=1)[0]
-
 def _saveDetection(detectionResult, outPath, **kwargs):
   draw = kwargs.get('draw', False)
   singleColor = kwargs.get('singleColor', False)
@@ -158,8 +156,9 @@ def _saveDetection(detectionResult, outPath, **kwargs):
     du.imwrite(img, outPath)
 
   else:
-    du.save(outPath, {'masks': detectionResult['masks'],
-      'scores': detectionResult['scores']})
+    enc = pcMask.encode(np.asfortranarray(
+      detectionResult['masks']).astype(np.uint8))
+    du.save(outPath, {'masks': enc, 'scores': detectionResult['scores']})
 
 def detect(weightPath, imgs, outs, **kwargs):
   draw = kwargs.get('draw', False)
@@ -207,185 +206,3 @@ def detect(weightPath, imgs, outs, **kwargs):
       img = du.imread(imgPath)
       r = model.detect([img], verbose=1)[0]
       _saveDetection(r, outPath, **kwargs)
-
-# def detect(weightPath, imgs, outs, **kwargs):
-#   logPath = kwargs.get('logPath', '.')
-#   draw = kwargs.get('draw', False)
-#   ss = kwargs.get('ss', 0.0)
-#   minConf = kwargs.get('minConf', 0.7)
-#
-#   class InferenceConfig(MarmosetConfig):
-#     # Set batch size to 1 since we'll be running inference on
-#     # one image at a time. Batch size = GPU_COUNT * IMAGES_PER_GPU
-#     GPU_COUNT = 1
-#     IMAGES_PER_GPU = 1
-#     RPN_NMS_THRESHOLD = 0.9
-#     DETECTION_MIN_CONFIDENCE = minConf
-#
-#   model = modellib.MaskRCNN(mode="inference", config=InferenceConfig(),
-#     model_dir=logPath)
-#   model.load_weights(weightPath, by_name=True)
-#
-#   cols = du.diffcolors(100, alpha=0.5)
-#
-#   # Read images
-#   for imgPath, outPath in zip(imgs, outs):
-#     ext = du.fileparts(imgPath)[2].lower()
-#     if ext == '.mp4' or ext == '.avi' or ext == '.mov':
-#       img = fu.GetRGBFrameByTimeNumpy(imgPath, ss)
-#     else:
-#       img = du.imread(imgPath)
-#
-#     # Detect objects
-#     r = model.detect([img], verbose=1)[0]
-#
-#     # draw masks
-#     masks = r['masks']
-#     if draw:
-#       nMasks = masks.shape[-1]
-#
-#       if kwargs.get('singleColor', False):
-#         img = du.DrawOnImage(img, np.nonzero(np.sum(masks, axis=2)), cols[0])
-#       else:
-#         for nM in range(nMasks):
-#           img = du.DrawOnImage(img, np.nonzero(masks[:,:,nM]), cols[nM])
-#
-#       # save image
-#       du.imwrite(img, outPath)
-#     else:
-#       # save masks and scores
-#       du.save(outPath, {'masks': r['masks'], 'scores': r['scores']})
-#
-# def detectMask(weightPath, imgs, outpath, **kwargs):
-#   logPath = kwargs.get('logPath', '.')
-#
-#   class InferenceConfig(MarmosetConfig):
-#     # Set batch size to 1 since we'll be running inference on
-#     # one image at a time. Batch size = GPU_COUNT * IMAGES_PER_GPU
-#     GPU_COUNT = 1
-#     IMAGES_PER_GPU = 1
-#     RPN_NMS_THRESHOLD = 0.9
-#   model = modellib.MaskRCNN(mode="inference", config=InferenceConfig(),
-#     model_dir=logPath)
-#   model.load_weights(weightPath, by_name=True)
-#
-#   cols = du.diffcolors(100, alpha=0.5)
-#
-#   # Read images
-#   for imgPath in imgs:
-#     img = du.imread(imgPath)
-#
-#     # Detect objects
-#     r = model.detect([img], verbose=1)[0]
-#
-#     # draw masks
-#     masks = r['masks']
-#     # nMasks = masks.shape[-1]
-#     # for nM in range(nMasks):
-#     #   img = du.DrawOnImage(img, np.nonzero(masks[:,:,nM]), cols[nM])
-#     
-#     # save mask
-#     base = du.fileparts(imgPath)[1]
-#     du.save(f'{outpath}/{base}', masks)
-
-#     config = MarmosetConfig()
-#     model = modellib.MaskRCNN(mode="inference", config=config,
-#                   model_dir=args.logs)
-#     model.load_weights(weights_path, by_name=True)
-#     detect(model, args.image, args.output)
-
-############################################################
-#  Training
-############################################################
-
-# if __name__ == '__main__':
-#   import argparse
-#
-#   # Parse command line arguments
-#   parser = argparse.ArgumentParser(
-#     description='Train Mask R-CNN to detect marmosets.')
-#   parser.add_argument("command",
-#             metavar="<command>",
-#             help="'train' or 'splash'")
-#   parser.add_argument('--dataset', required=False,
-#             metavar="/path/to/marmoset/dataset/",
-#             help='Directory of the Marmoset dataset')
-#   parser.add_argument('--weights', required=True,
-#             metavar="/path/to/weights.h5",
-#             help="Path to weights .h5 file or 'coco'")
-#   parser.add_argument('--logs', required=False,
-#             default=DEFAULT_LOGS_DIR,
-#             metavar="/path/to/logs/",
-#             help='Logs and checkpoints directory (default=logs/)')
-#   parser.add_argument('--image', required=False,
-#             metavar="path or URL to image",
-#             help='Image to apply the color splash effect on')
-#   parser.add_argument('--output', default='output',
-#             help='Path to output detections')
-#   args = parser.parse_args()
-#
-#   # Validate arguments
-#   if args.command == "train":
-#     assert args.dataset, "Argument --dataset is required for training"
-#   elif args.command == "splash":
-#     assert args.image or args.video,\
-#          "Provide --image or --video to apply color splash"
-#
-#   print("Weights: ", args.weights)
-#   print("Dataset: ", args.dataset)
-#   print("Logs: ", args.logs)
-#
-#   # Configurations
-#   if args.command == "train":
-#     config = MarmosetConfig()
-#   else:
-#     class InferenceConfig(MarmosetConfig):
-#       # Set batch size to 1 since we'll be running inference on
-#       # one image at a time. Batch size = GPU_COUNT * IMAGES_PER_GPU
-#       GPU_COUNT = 1
-#       IMAGES_PER_GPU = 1
-#     config = InferenceConfig()
-#   config.display()
-#
-#   # Create model
-#   if args.command == "train":
-#     model = modellib.MaskRCNN(mode="training", config=config,
-#                   model_dir=args.logs)
-#   else:
-#     model = modellib.MaskRCNN(mode="inference", config=config,
-#                   model_dir=args.logs)
-#
-#   # Select weights file to load
-#   if args.weights.lower() == "coco":
-#     weights_path = COCO_WEIGHTS_PATH
-#     # Download weights file
-#     if not os.path.exists(weights_path):
-#       utils.download_trained_weights(weights_path)
-#   elif args.weights.lower() == "last":
-#     # Find last trained weights
-#     weights_path = model.find_last()
-#   elif args.weights.lower() == "imagenet":
-#     # Start from ImageNet trained weights
-#     weights_path = model.get_imagenet_weights()
-#   else:
-#     weights_path = args.weights
-#
-#   # Load weights
-#   print("Loading weights ", weights_path)
-#   if args.weights.lower() == "coco":
-#     # Exclude the last layers because they require a matching
-#     # number of classes
-#     model.load_weights(weights_path, by_name=True, exclude=[
-#       "mrcnn_class_logits", "mrcnn_bbox_fc",
-#       "mrcnn_bbox", "mrcnn_mask"])
-#   else:
-#     model.load_weights(weights_path, by_name=True)
-#
-#   # Train or evaluate
-#   if args.command == "train":
-#     train(model)
-#   elif args.command == "detect":
-#     detect(model, args.image, args.output)
-#   else:
-#     print("'{}' is not recognized. "
-#         "Use 'train' or 'detect'".format(args.command))
