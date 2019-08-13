@@ -160,6 +160,19 @@ def _saveDetection(detectionResult, outPath, **kwargs):
       detectionResult['masks']).astype(np.uint8))
     du.save(outPath, {'masks': enc, 'scores': detectionResult['scores']})
 
+def _detectVideo(model, videoPath, outPath):
+  video = cv2.VideoCapture(videoPath)
+  T = fu.VideoGetNumFrames(videoPath)
+
+  dets = [ [] for t in range(T) ]
+  for t in range(T):
+    _, image = video.read()
+    if image is None: continue
+    r = model.detect([image], verbose=1)[0]
+    enc = pcMask.encode(np.asfortranarray(r['masks']).astype(np.uint8))
+    dets[t] = {'masks': enc, 'scores': r['scores']}
+  du.save(outPath, dets)
+
 def detect(weightPath, imgs, outs, **kwargs):
   draw = kwargs.get('draw', False)
   ss = kwargs.get('ss', None)
@@ -190,6 +203,11 @@ def detect(weightPath, imgs, outs, **kwargs):
         r = model.detect([img], verbose=1)[0]
         _saveDetection(r, outPath, **kwargs)
       else:
+        if not draw:
+          print('_detectVideo')
+          _detectVideo(model, imgPath, outPath)
+          continue
+
         video = cv2.VideoCapture(imgPath)
         success, cnt = (True, 0)
         while success:
