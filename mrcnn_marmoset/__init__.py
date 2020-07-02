@@ -137,7 +137,7 @@ def train(model):
         epochs=1000,
         layers='all')
 
-def _saveDetection(detectionResult, outPath, **kwargs):
+def _saveDetection(detectionResult, img, outPath, **kwargs):
   draw = kwargs.get('draw', False)
   singleColor = kwargs.get('singleColor', False)
 
@@ -201,7 +201,7 @@ def detect(weightPath, imgs, outs, **kwargs):
       if ss is not None:
         img = fu.GetRGBFrameByTimeNumpy(imgPath, ss)
         r = model.detect([img], verbose=1)[0]
-        _saveDetection(r, outPath, **kwargs)
+        _saveDetection(r, img, outPath, **kwargs)
       else:
         if not draw:
           print('_detectVideo')
@@ -216,11 +216,11 @@ def detect(weightPath, imgs, outs, **kwargs):
           r = model.detect([image], verbose=1)[0]
           outName = f'{outPath}-{cnt:08}'
           if draw: outName += '.jpg'
-          _saveDetection(r, outName, **kwargs)
+          _saveDetection(r, image, outName, **kwargs)
           print(du.toc())
           cnt += 1
         continue
     else:
       img = du.imread(imgPath)
       r = model.detect([img], verbose=1)[0]
-      _saveDetection(r, outPath, **kwargs)
+      _saveDetection(r, img, outPath, **kwargs)

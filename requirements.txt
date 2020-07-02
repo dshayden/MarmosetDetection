@@ -1,6 +1,8 @@
-du
-ffmpegu
+tensorflow==1.13.1
+keras==2.3.1
+-e git+git@github.com:dshayden/du.git#egg=du
+-e git+git@github.com:dshayden/ffmpegu.git#egg=ffmpegu
+-e git+git@github.com:matterport/Mask_RCNN.git#egg=mrcnn
 numpy
-mask-rcnn
 opencv-python
 pycocotools
